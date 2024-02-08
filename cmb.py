@@ -120,7 +120,7 @@ temperature_map = hp.read_map("map1.fits", nest=True)
 start = time.time()
 
 start_time=0
-duration = 60 #in sec
+duration = 3600*24*60 #in sec
 steps = int(duration / scan_time)
 
 time_periods = np.linspace(start_time, start_time + steps*scan_time, steps)
