@@ -125,10 +125,31 @@ steps = int(duration / scan_time)
 
 time_periods = np.linspace(start_time, start_time + steps*scan_time, steps)
 time_periods_iterator = tqdm(time_periods, desc="Processing", total=len(time_periods))
-with open("check.dat", "a") as f:  
-    for time_period in time_periods_iterator:  # Iterate over the tqdm object
-        pixel,temperature = process_time_step(time_period)
+def parallel_execution(chunk):
+    results = []
+    for time_period in tqdm(chunk, desc="Processing"):
+        pixel, temperature = process_time_step(time_period)
+        results.append((time_period, pixel, temperature))
+    return results
+
+start = time.time()
+
+# Split the time_periods array into chunks for parallel processing
+chunks = np.array_split(time_periods, 48)
+
+# Using multiprocessing for parallel execution
+with multiprocessing.Pool(processes=48) as pool:
+    results = pool.map(parallel_execution, chunks)
+
+# Flatten the results list of lists
+results = [item for sublist in results for item in sublist]
+
+# Write results to the file
+with open("temperature.dat", "a") as f:
+    for result in results:
+        time_period, pixel, temperature = result
         f.write(f"{time_period:.4f} {pixel} {temperature}\n")
-    end = time.time()
-    elapsed_time = end - start
-    f.write(f"Total execution time: {elapsed_time:.2f} seconds")
+
+end = time.time()
+elapsed_time = end - start
+print(f"Total execution time: {elapsed_time:.2f} seconds")
