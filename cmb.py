@@ -91,7 +91,7 @@ def process_time_step(time_step):
     # 5. angular separation central pixel to neighbor
     theta_separations = np.zeros_like(neighbours)
     for i, neighbour_pix in enumerate(neighbours):
-        theta_neighbour, phi_neighbour = hp.pix2ang(nside, neighbour_pix)
+        theta_neighbour, phi_neighbour = hp.pix2ang(nside, neighbour_pix, nest = True)
         theta_separations[i] = ang_distance(theta_R, theta_neighbour, phi_R, phi_neighbour) 
 
     # 6. Retrieve temperatures of neighboring pixels
@@ -112,7 +112,7 @@ npix = 12*nside**2
 
 # time_step=scan_time
 scan_time = np.sqrt(4*np.pi/npix)/w1
-fwhm=45 # Example (in degree)
+fwhm=45/60 # Example (in min )
 sigma = fwhm / np.sqrt(8 * np.log(2)) 
 
 temperature_map = hp.read_map("map1.fits", nest=True)
@@ -120,7 +120,7 @@ temperature_map = hp.read_map("map1.fits", nest=True)
 start = time.time()
 
 start_time=0
-duration = 3600*24*60 #in sec
+duration = 3600*24*30 #in sec (one month)
 steps = int(duration / scan_time)
 
 time_periods = np.linspace(start_time, start_time + steps*scan_time, steps)
@@ -129,7 +129,7 @@ def parallel_execution(chunk):
     results = []
     for time_period in tqdm(chunk, desc="Processing"):
         pixel, temperature = process_time_step(time_period)
-        results.append((time_period, pixel, temperature))
+        results.append(( pixel, temperature))
     return results
 
 start = time.time()
@@ -145,10 +145,10 @@ with multiprocessing.Pool(processes=48) as pool:
 results = [item for sublist in results for item in sublist]
 
 # Write results to the file
-with open("temperature.dat", "a") as f:
+with open("1month.dat", "a") as f:
     for result in results:
-        time_period, pixel, temperature = result
-        f.write(f"{time_period:.4f} {pixel} {temperature}\n")
+        pixel, temperature = result
+        f.write(f"{pixel} {temperature}\n")
 
 end = time.time()
 elapsed_time = end - start
