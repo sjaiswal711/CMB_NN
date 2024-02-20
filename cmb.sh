@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -N 1                     # number of nodes
-#SBATCH --ntasks-per-node=24	  # number of cores per node
+#SBATCH --ntasks-per-node=48	  # number of cores per node
 #SBATCH --error=job.%J.err	 # name of output file
 #SBATCH --output=job.%J.out	 # name of error file
 #SBATCH --time=24:00:00          # time required to execute the program
