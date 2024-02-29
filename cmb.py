@@ -124,7 +124,7 @@ scan_time = np.sqrt(4*np.pi/npix)/w1
 
 sigma = np.radians(30/60)
 
-#temperature_map = hp.read_map("input_map.fits")
+temperature_map = hp.read_map("input_map.fits")
 
 start = time.time()
 
