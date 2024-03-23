@@ -182,5 +182,5 @@ results = [item for sublist in results for item in sublist]
 # Write results to the file
 # file_path = 'check.dat'
 file_path = 'month1.dat'
-np.savetxt(file_path, results, fmt='%.4f %%d %.16f ')
+np.savetxt(file_path, results, fmt='%.4f %d %.16f ')
 print(f"Results saved to {file_path}")
