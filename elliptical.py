@@ -4,64 +4,51 @@ import healpy as hp
 from tqdm import tqdm
 import multiprocessing
 
-def RVector(t):
-    theta1 = 7.5*np.pi / 180
-    theta2 = 85*np.pi / 180
-    w1 = 2*np.pi  #rad/min
-    w2 = 2*w1 #rad/min
-    w3 = 0.000011954  #rad/min
+theta1 = 7.5 * np.pi / 180
+theta2 = 85 * np.pi / 180
+w1 = 2 * np.pi  # rad/min
+w2 = 2 * w1  # rad/min
+w3 = 0.000011954  # rad/min
 
-    A=[[np.cos(w1*t),np.sin(w1*t),0],
-       [-np.sin(w1*t),np.cos(w1*t),0],
-       [0,0,1]]
+def get_vectors(t):
+    cos_w1t = np.cos(w1 * t)
+    sin_w1t = np.sin(w1 * t)
 
-    B=[[1,0,0],
-       [0,np.cos(w2*t),np.sin(w2*t)],
-       [0,-np.sin(w2*t),np.cos(w2*t)]]
+    cos_w2t = np.cos(w2 * t)
+    sin_w2t = np.sin(w2 * t)
 
-    C=[[np.cos(theta1),0,np.sin(theta1)],
-       [0,1,0],
-       [-np.sin(theta1),0,np.cos(theta1)]]
+    cos_theta1 = np.cos(theta1)
+    sin_theta1 = np.sin(theta1)
 
-    D=[[np.cos(theta2)],
-       [np.sin(theta2)*np.cos(w3*t)],
-       [np.sin(theta2)*np.sin(w3*t)]]
+    cos_theta2 = np.cos(theta2)
+    sin_theta2 = np.sin(theta2)
 
-    result1 = np.matmul(A,B)
-    result2 = np.matmul(result1,C)
-    result = np.matmul(result2,D)
-    result = np.matrix.transpose(result)
-    return result.flatten()
+    A = np.array([[cos_w1t, sin_w1t, 0],
+                  [-sin_w1t, cos_w1t, 0],
+                  [0, 0, 1]])
 
-def SVector(t):
-    theta1 = 7.5*np.pi / 180
-    theta2 = 0
-    w1 = 2*np.pi  #rad/min
-    w2 = 2*w1 #rad/min
-    w3 = 0.000011954  #rad/min
+    B = np.array([[1, 0, 0],
+                  [0, cos_w2t, sin_w2t],
+                  [0, -sin_w2t, cos_w2t]])
 
-    A=[[np.cos(w1*t),np.sin(w1*t),0],
-       [-np.sin(w1*t),np.cos(w1*t),0],
-       [0,0,1]]
+    C = np.array([[cos_theta1, 0, sin_theta1],
+                  [0, 1, 0],
+                  [-sin_theta1, 0, cos_theta1]])
 
-    B=[[1,0,0],
-       [0,np.cos(w2*t),np.sin(w2*t)],
-       [0,-np.sin(w2*t),np.cos(w2*t)]]
+    D_R = np.array([[cos_theta2],
+                    [sin_theta2 * np.cos(w3 * t)],
+                    [sin_theta2 * np.sin(w3 * t)]])
 
-    C=[[np.cos(theta1),0,np.sin(theta1)],
-       [0,1,0],
-       [-np.sin(theta1),0,np.cos(theta1)]]
+    D_S = np.array([[1],
+                    [0],
+                    [0]])
 
-    D=[[np.cos(theta2)],
-       [-np.sin(theta2)*np.cos(w3*t)],
-       [-np.sin(theta2)*np.sin(w3*t)]]
+    result1 = np.dot(np.dot(A, B), C)
+    result_R = np.matmul(result1, D_R)
+    result_S = np.matmul(result1, D_S)
 
-    result1 = np.dot(A,B)
-    result2 = np.dot(C,D)
-    result = np.dot(result1,result2)
-    result = np.matrix.transpose(result)
-    return result.flatten()
-
+    return result_R.T.flatten(), result_S.T.flatten()  # Return both flattened vectors
+    
 #  Angle between two vector
 
 def angle_vec(A, B):
@@ -74,28 +61,23 @@ def angle_vec(A, B):
     angle = np.arccos(cos_theta)
     return angle
 
-def angle(vec1, vec2):
+def anglev(vec1, vec2):
   dot_product = np.dot(vec1, vec2)
   clipped_dp = np.clip(dot_product, -1.0, 1.0) # Clip dot_product to the valid range for arccos to avoid NaNs
   angle = np.arccos(clipped_dp)
   return angle
-
-
-theta1 = 7.5*np.pi / 180
-theta2 = 85*np.pi / 180
-w1 = 2*np.pi  #rad/min
-w2 = 2*w1 #rad/min
-w3 = 0.000011954  #rad/min
 
 nside=1024
 npix = 12*nside**2
 
 # time_step=scan_time
 scan_time = np.sqrt(4*np.pi/npix)/w1
-fwhm_x = np.radians(10) 
-fwhm_y = np.radians(15)
+fwhm_x = np.radians(10/60) 
+fwhm_y = np.radians(15/60)
+
 sigma_x = fwhm_x / np.sqrt(8 * np.log(2)) 
 sigma_y = fwhm_y / np.sqrt(8 * np.log(2))
+sigma = max(sigma_x,sigma_y)
 
 temperature_map = hp.read_map("input_map.fits")
 
@@ -104,8 +86,8 @@ def process_time_step(time_step):
     t = time_step  
 
     # 1. Calculate R(t) and S(t) vectors
-    R = RVector(t)
-    S = SVector(t)
+    R, S =  get_vectors(t)
+
 
     # 2. Calculate pixel number along R(t) vector (ring format)
     pix_ring = hp.vec2pix(nside, R[0], R[1], R[2], nest=False)
@@ -118,7 +100,7 @@ def process_time_step(time_step):
     
     # 4. Find neighboring pixels in RING format
     Rc = hp.pix2vec(nside,pix_ring,nest=False)
-    neighbours = hp.query_disc(nside, Rc , radius=(3*sigma_y))
+    neighbours = hp.query_disc(nside, Rc , radius=(3*sigma))
 
     # 5. angular separation between central pixel and neighbouring pixels
     x = np.zeros_like(neighbours, dtype=float)
@@ -127,7 +109,7 @@ def process_time_step(time_step):
     for i, neighbour_pix in enumerate(neighbours):
         
         R_i = hp.pix2vec(nside,neighbour_pix,nest=False)
-        theta_i = angle(Rc, R_i)
+        theta_i = anglev(Rc, R_i)
 
         # 6. A_i = line joining central pixel and neighbour pixel
         R_i = hp.pix2vec(nside,neighbour_pix,nest=False)
@@ -135,7 +117,7 @@ def process_time_step(time_step):
         # print("A_i = ",A_i,"\nN_t = ",N_t)
         
         # 7. angle between N & A_i
-        alpha_i = angle_vec(A_i, N_t,theta_i,R_i) 
+        alpha_i = angle_vec(A_i, N_t) 
         # print("alpha_i=",(alpha_i))
         # 8. x_i and y_i
         x[i] = theta_i * np.cos(alpha_i)
@@ -149,38 +131,42 @@ def process_time_step(time_step):
 
     return int(pix_ring),convolved_temperature
 
-
 start = time.time()
 
 start_time=0
-duration = 6 #in min (one month)
+duration = 24*60*30 #in min (one month)
 steps = int(duration / scan_time)
-# steps = 1
+
 
 time_periods = np.linspace(start_time, start_time + duration,steps)
 time_periods_iterator = tqdm(time_periods, desc="Processing", total=len(time_periods))
+
 def parallel_execution(chunk):
     results = []
     for time_period in tqdm(chunk, desc="Processing"):
         pixel,temperature = process_time_step(time_period)
-        results.append((time_period,pixel,temperature))
+        results.append((time_period, pixel, temperature))
     return results
+
 
 start = time.time()
 
 # Split the time_periods array into chunks for parallel processing
-chunks = np.array_split(time_periods, 16)
+chunks = np.array_split(time_periods, 48)
 
 # Using multiprocessing for parallel execution
-with multiprocessing.Pool(processes=16) as pool:
+with multiprocessing.Pool(processes=48) as pool:
     results = pool.map(parallel_execution, chunks)
 
 print("result processing")
 # Flatten the results list of lists
 results = [item for sublist in results for item in sublist]
-
-# Write results to the file
 # file_path = 'check.dat'
-file_path = 'month1.dat'
+file_path = 'Data/1ellip.dat'
 np.savetxt(file_path, results, fmt='%.4f %d %.16f ')
 print(f"Results saved to {file_path}")
+end = time.time()
+elapsed_time = end - start
+print(f"Total execution time: {elapsed_time:.2f} seconds")
+
+
