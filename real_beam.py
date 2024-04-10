@@ -109,7 +109,7 @@ def process_time_step(time_step):
     
     # 4. Find neighboring pixels in RING format
     Rc = hp.pix2vec(nside,pix_ring,nest=False)
-    neighbours = hp.query_disc(nside, Rc , radius=(3*sigma_y))
+    neighbours = hp.query_disc(nside, Rc , radius=(100))
 
     # 5. angular separation between central pixel and neighbouring pixels
     x = np.zeros_like(neighbours, dtype=float)
